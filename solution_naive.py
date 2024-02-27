@@ -1,15 +1,8 @@
 import evaluateShared as es
 import sys
 
-
-
 class Driver:
-    def __init__(self):
-        self.currentLoc = es.Point(0,0)
-        self.distanceTravelled = 0.0
-        self.loads = []
-
-    def __init__(self, location, distanceTravelled, loads):
+    def __init__(self, location = es.Point(0,0), distanceTravelled = 0.0, loads = []):
         self.currentLoc = location
         self.distanceTravelled = distanceTravelled
         self.loads = loads
@@ -22,7 +15,7 @@ class Solution:
         loadByID ={}
         for load in vrp.loads:
             loadByID[load.id] = load
-        drivers = [Driver(es.Point(0,0), 0.0, [])]
+        drivers = [Driver()]
             
         for load in vrp.loads:
 
@@ -44,10 +37,9 @@ class Solution:
         for driver in drivers:
             lids =[]
             for load in driver.loads:
-                lids.append(int(load.id))
-            print('[', end="")
-            print(*lids, sep=',', end="")
-            print(']')
+                lids.append(int(load.id.rstrip('\r')))
+            print(lids)
+   
 
 
 if __name__ == "__main__":
