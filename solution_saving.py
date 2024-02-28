@@ -18,11 +18,15 @@ class Solution:
         savings = []
         for i in self.loadByID:
             for j in self.loadByID:
-                if i != j:            
+                if i != j:      
+                    load1 = self.loadByID[i]
+                    load2 = self.loadByID[j]      
                     key = (i, j)
-                    saving = (key, util.distanceBetweenPoints(self.loadByID[i].dropoff, self.depot) \
-                                    + util.distanceBetweenPoints(self.depot, self.loadByID[j].pickup) \
-                                    - util.distanceBetweenPoints(self.loadByID[i].dropoff, self.loadByID[j].pickup))
+                    # Formula: 
+                    # savings = D(i.dropoff, 0) + D(0, j.pickup) - D(i.dropoff, j.pickup)
+                    saving = (key, util.distanceBetweenPoints(load1.dropoff, self.depot) \
+                                    + util.distanceBetweenPoints(self.depot, load2.pickup) \
+                                    - util.distanceBetweenPoints(load1.dropoff, load2.pickup))
                     savings.append(saving)
 
         savings = sorted(savings, key = lambda x: x[1], reverse=True)
@@ -51,6 +55,10 @@ class Solution:
             print([int(load.id) for load in driver.route])
 
     def solve(self):
+
+        '''
+        Implementation of Clark-Wright Savings algorithm
+        '''
         
         # calculate savings for each link
         savings = self.computeSavings()
