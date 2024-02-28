@@ -30,6 +30,7 @@ class Solution:
 
         savings = sorted(savings, key = lambda x: x[1], reverse=True)
 
+
         for link, saving in savings:
 
             # If not all loads are assigned
@@ -102,6 +103,10 @@ class Solution:
                 self.drivers.append(d)
                 self.assigned[i] = d
                 
+    def optimize(self):
+
+        for driver in self.drivers:
+            driver.route = self.two_opt(driver.route)
 
     def computeDistance(self, nodes, from_depot, to_depot):
 
@@ -119,13 +124,29 @@ class Solution:
         
         return distance
     
+    def two_opt(self, route):
+        improved = True
+        while improved:
+            improved = False
+            for i in range(1, len(route) - 2):
+                for j in range(i + 1, len(route)):
+                    if j - i == 1:
+                        continue  # No point in swapping adjacent edges
+                    new_route = route[:i] + route[i:j][::-1] + route[j:]
+                    new_distance = self.computeDistance(new_route, True, True)
+                    if new_distance < self.computeDistance(route, True, True):
+                        route = new_route
+                        improved = True
+                        break
+                if improved:
+                    break
+        return route
+
     def print_solution(self):
 
-        count = 0
         numbers = []
         for d in self.drivers:
             lids =[]
-            count += len(d.route)
             for load in d.route:
                 lids.append(int(load.id))
                 numbers.append(int(load.id))
@@ -141,4 +162,5 @@ if __name__ == "__main__":
     s = Solution()
     s.load(file_path)
     s.solve()
+    # s.optimize()
     s.print_solution()
