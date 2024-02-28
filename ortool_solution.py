@@ -4,12 +4,6 @@ import sys
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 
-class Driver:
-    def __init__(self, location = es.Point(0,0), distanceTravelled = 0.0, loads = []):
-        self.currentLoc = location
-        self.distanceTravelled = distanceTravelled
-        self.loads = loads
-
 class Solution:
 
     def print_solution(self, loads, manager, routing, solution):
