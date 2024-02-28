@@ -30,7 +30,6 @@ class Solution:
 
         savings = sorted(savings, key = lambda x: x[1], reverse=True)
 
-
         for link, saving in savings:
 
             # If not all loads are assigned
@@ -92,7 +91,6 @@ class Solution:
                             d1.route = d1.route + d2.route
                             for load in d2.route:
                                 self.assigned[int(load.id)] = d1
-                            # self.assigned[link[1]] = d1
                             
                             self.drivers.remove(d2)
                         
@@ -102,11 +100,6 @@ class Solution:
                 d.route.append(self.loadByID[i])
                 self.drivers.append(d)
                 self.assigned[i] = d
-                
-    def optimize(self):
-
-        for driver in self.drivers:
-            driver.route = self.two_opt(driver.route)
 
     def computeDistance(self, nodes, from_depot, to_depot):
 
@@ -123,34 +116,16 @@ class Solution:
                 distance += util.distanceBetweenPoints(nodes[-1].dropoff, self.depot)
         
         return distance
-    
-    def two_opt(self, route):
-        improved = True
-        while improved:
-            improved = False
-            for i in range(1, len(route) - 2):
-                for j in range(i + 1, len(route)):
-                    if j - i == 1:
-                        continue  # No point in swapping adjacent edges
-                    new_route = route[:i] + route[i:j][::-1] + route[j:]
-                    new_distance = self.computeDistance(new_route, True, True)
-                    if new_distance < self.computeDistance(route, True, True):
-                        route = new_route
-                        improved = True
-                        break
-                if improved:
-                    break
-        return route
 
     def print_solution(self):
 
-        numbers = []
         for d in self.drivers:
             lids =[]
             for load in d.route:
-                lids.append(int(load.id))
-                numbers.append(int(load.id))
+                lids.append(load.id)
             print(lids)
+
+                
 
 
 if __name__ == "__main__":
@@ -162,5 +137,4 @@ if __name__ == "__main__":
     s = Solution()
     s.load(file_path)
     s.solve()
-    # s.optimize()
     s.print_solution()
