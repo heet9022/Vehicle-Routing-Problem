@@ -20,7 +20,7 @@ class Solution:
         home = es.Point(0,0)
         vrp = es.loadProblemFromFile(file_path)
         for load in vrp.loads:
-            self.loadByID[load.id] = load
+            self.loadByID[int(load.id)] = load
         num_loads = len(vrp.loads)
 
         # calculate savings for each link
@@ -36,6 +36,8 @@ class Solution:
 
         savings = sorted(savings, key = lambda x: x[1], reverse=True)
 
+        # print(savings)
+        # print(self.loadByID)
         for saving in savings:
 
             link  = saving[0]
@@ -50,33 +52,84 @@ class Solution:
                 if (link[0] not in self.assigned) and (link[1] not in self.assigned):
 
                     # calculate distance
-                    cost = self.computeDistance([self.loadByID(link[0]), self.loadByID(link[1])], True, True)
+                    cost = self.computeDistance([self.loadByID[link[0]], self.loadByID[link[1]]], True, True)
                     if cost <= 12*60:
                         d = Driver()
-                        d.route = [self.loadByID(link[0]), self.loadByID(link[1])]
+                        d.route = [self.loadByID[link[0]], self.loadByID[link[1]]]
                         self.drivers.append(d)
                         self.assigned[link[0]] = d
                         self.assigned[link[1]] = d
-  
-                        print('\t','Link ', link, ' fulfills criteria a), so it is created as a new route')
-                    else:
-                        print('\t','Though Link ', link, ' fulfills criteria a), it exceeds maximum load, so skip this link.')
 
+
+                # condition b. Or, exactly one of the two nodes (i or j) has already been included 
+                # ...in an existing route and that point is not interior to that route 
+                # ...(a point is interior to a route if it is not adjacent to the depot D in the order of traversal of nodes), 
+                # ...in which case the link (i, j) is added to that same route.    
+                elif (link[0] in self.assigned) and (link[1] not in self.assigned):
+
+                    d = self.assigned[link[0]]
+                    i = d.route.index(self.loadByID[link[0]])
+                    # if node is the last node of route
+                    if i == len(d.route) - 1:
+                        cost = self.computeDistance(d.route + [self.loadByID[link[1]]], True, True)
+                        if cost <= 12*60:
+                            d.route.append(self.loadByID[link[1]])
+                            self.assigned[link[1]] = d
+ 
+                elif (link[0] not in self.assigned) and (link[1] in self.assigned):
+
+                    d = self.assigned[link[1]]
+                    i = d.route.index(self.loadByID[link[1]])
+                    # if node is the first node of route
+                    if i == 0:
+                        cost = self.computeDistance([self.loadByID[link[0]]] + d.route, True, True)
+                        if cost <= 12*60:
+                            d.route = [self.loadByID[link[0]]] + d.route
+                            self.assigned[link[0]] = d
+
+                # condition c. Or, both i and j have already been included in two different existing routes 
+                # ...and neither point is interior to its route, in which case the two routes are merged.        
+                else:
+
+                    d1 = self.assigned[link[0]]
+                    i1 = d1.route.index(self.loadByID[link[0]])
+
+                    d2 = self.assigned[link[1]]
+                    i2 = d2.route.index(self.loadByID[link[1]])
+
+                    # if node1 is the last node of its route and node 2 is the first node of its route and the routes are different
+                    if (i1 == len(d.route) - 1) and (i2 == 0) and (d1 != d2):
+                        cost = self.computeDistance(d1.route + d2.route, True, True)
+                        if cost <= 12*60:
+                            d1.route = d1.route + d2.route
+                            for load in d2.route:
+                                self.assigned[int(load.id)] = d1
+                            # self.assigned[link[1]] = d1
+                            
+                            self.drivers.remove(d2)
+                        
+        for i in range(1, len(vrp.loads) + 1):
+            if i not in self.assigned:
+                d = Driver(0, [])
+                d.route.append(self.loadByID[i])
+                self.drivers.append(d)
+                self.assigned[i] = d
+                
 
     def computeDistance(self, nodes, from_depot, to_depot):
 
         distance = 0.0
         for i in range(len(nodes)):
-            distance += es.distanceBetweenPoints(nodes[i].pickup, nodes[i].delivery)
+            distance += es.distanceBetweenPoints(nodes[i].pickup, nodes[i].dropoff)
             if i != (len(nodes) - 1):
-                distance += es.distanceBetweenPoints(nodes[i].delivery, nodes[i+1].pickup)
+                distance += es.distanceBetweenPoints(nodes[i].dropoff, nodes[i+1].pickup)
 
         home = es.Point(0,0)
         if nodes:
             if from_depot:
                 distance += es.distanceBetweenPoints(home, nodes[0].pickup)
             if to_depot:
-                distance += es.distanceBetweenPoints(nodes[-1].delivery, home)
+                distance += es.distanceBetweenPoints(nodes[-1].dropoff, home)
         
         return distance
 
@@ -85,66 +138,29 @@ class Solution:
         nodes = link.split(',')
         return [int(nodes[0]), int(nodes[1])]
     
-    # determine if a node is interior to a route
-    def interior(self, node, route):
-        try:
-            i = route.index(node)
-            # adjacent to depot, not interior
-            if i == 0 or i == (len(route) - 1):
-                label = False
-            else:
-                label = True
-        except:
-            label = False
-        
-        return label
-    
-    # merge two routes with a connection link
-    def merge(route0, route1, link):
-        # if route0.index(link[0]) != (len(route0) - 1):
-        #     route0.reverse()
-        
-        # if route1.index(link[1]) != 0:
-        #     route1.reverse()
-            
-        return route0 + route1
-    
-    # determine 4 things:
-    # 1. if the link in any route in routes -> determined by if count_in > 0
-    # 2. if yes, which node is in the route -> returned to node_sel
-    # 3. if yes, which route is the node belongs to -> returned to route id: i_route
-    # 4. are both of the nodes in the same route? -> overlap = 1, yes; otherwise, no
-    def which_route(self, link, routes):
-        # assume nodes are not in any route
-        node_sel = list()
-        i_route = [-1, -1]
-        count_in = 0
-        
+    def print_solution(self):
 
-        for node in link:
-            if node in self.assigned:
-                node_sel.append(node)
+        count = 0
+        numbers = []
+        for d in self.drivers:
+            lids =[]
+            count += len(d.route)
+            for load in d.route:
+                lids.append(int(load.id))
+                numbers.append(int(load.id))
+            print(lids)
+        # print(count)
+        # print(len(set(numbers)))
+        # nat_numbers = [i for i in range(1, 201)]
+        # print(set(nat_numbers) - set(numbers))
 
-        for route in routes:
-            for node in link:
-                try:
-                    route.index(node)
-                    i_route[count_in] = routes.index(route)
-                    node_sel.append(node)
-                    count_in += 1
-                except:
-                    pass
-                    
-        if i_route[0] == i_route[1]:
-            overlap = 1
-        else:
-            overlap = 0
-            
-        return node_sel, count_in, i_route, overlap
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python solution_naive.py <file_path>")
         sys.exit(1)
     file_path = sys.argv[1]
-    Solution().solve(file_path)
+    # file_path = ".\Training Problems\problem13.txt"
+    s = Solution()
+    s.solve(file_path)
+    s.print_solution()
