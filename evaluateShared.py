@@ -162,7 +162,7 @@ if __name__ == '__main__':
         cmd = args.cmd.split()
         cmd.append(inputPath)
         startTime = time.time()
-        output = subprocess.check_output(cmd).decode("utf-8")
+        output = subprocess.check_output(cmd).decode("utf-8").replace('\r\n', '\n')
         runTime = time.time() - startTime
         print("\trun time:", runTime, "s")
         if runTime > 30:
