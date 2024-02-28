@@ -1,11 +1,5 @@
-import evaluateShared as es
 import sys
-
-class Driver:
-
-    def __init__(self, distance=0, route=[]):
-        self.distanceTravelled = distance
-        self.route = route
+import util
 
 class Solution:
 
@@ -13,39 +7,33 @@ class Solution:
         self.assigned = {}
         self.drivers = []
         self.loadByID ={}
+        self.depot = util.Point(0,0)
+        self.max_distance = 12*60
 
-    def solve(self, file_path):
-        
-        savings = []
-        home = es.Point(0,0)
-        vrp = es.loadProblemFromFile(file_path)
-        for load in vrp.loads:
+    def load(self, file_path):
+        loads = util.loadProblemFromFile(file_path)
+        for load in loads:
             self.loadByID[int(load.id)] = load
-        num_loads = len(vrp.loads)
 
+    def solve(self):
+        
         # calculate savings for each link
-
-        for i in range(num_loads):
-            for j in range(num_loads):
+        savings = []
+        for i in self.loadByID:
+            for j in self.loadByID:
                 if i != j:            
-                    key = str(i+1) + ',' + str(j+1)
-                    saving = (key, es.distanceBetweenPoints(vrp.loads[i].dropoff, home) \
-                                    + es.distanceBetweenPoints(home, vrp.loads[j].pickup) \
-                                    - es.distanceBetweenPoints(vrp.loads[i].dropoff, vrp.loads[j].pickup))
+                    key = (i, j)
+                    saving = (key, util.distanceBetweenPoints(self.loadByID[i].dropoff, self.depot) \
+                                    + util.distanceBetweenPoints(self.depot, self.loadByID[j].pickup) \
+                                    - util.distanceBetweenPoints(self.loadByID[i].dropoff, self.loadByID[j].pickup))
                     savings.append(saving)
 
         savings = sorted(savings, key = lambda x: x[1], reverse=True)
 
-        # print(savings)
-        # print(self.loadByID)
-        for saving in savings:
-
-            link  = saving[0]
+        for link, saving in savings:
 
             # If not all loads are assigned
-            if len(self.assigned) != len(vrp.loads):
-
-                link = self.get_node(link)
+            if len(self.assigned) != len(self.loadByID):
 
                 # condition a. Either, neither i nor j have already been assigned to a route, 
                 # ...in which case a new route is initiated including both i and j.
@@ -53,13 +41,12 @@ class Solution:
 
                     # calculate distance
                     cost = self.computeDistance([self.loadByID[link[0]], self.loadByID[link[1]]], True, True)
-                    if cost <= 12*60:
-                        d = Driver()
+                    if cost <= self.max_distance:
+                        d = util.Driver()
                         d.route = [self.loadByID[link[0]], self.loadByID[link[1]]]
                         self.drivers.append(d)
                         self.assigned[link[0]] = d
                         self.assigned[link[1]] = d
-
 
                 # condition b. Or, exactly one of the two nodes (i or j) has already been included 
                 # ...in an existing route and that point is not interior to that route 
@@ -72,7 +59,7 @@ class Solution:
                     # if node is the last node of route
                     if i == len(d.route) - 1:
                         cost = self.computeDistance(d.route + [self.loadByID[link[1]]], True, True)
-                        if cost <= 12*60:
+                        if cost <= self.max_distance:
                             d.route.append(self.loadByID[link[1]])
                             self.assigned[link[1]] = d
  
@@ -83,7 +70,7 @@ class Solution:
                     # if node is the first node of route
                     if i == 0:
                         cost = self.computeDistance([self.loadByID[link[0]]] + d.route, True, True)
-                        if cost <= 12*60:
+                        if cost <= self.max_distance:
                             d.route = [self.loadByID[link[0]]] + d.route
                             self.assigned[link[0]] = d
 
@@ -100,7 +87,7 @@ class Solution:
                     # if node1 is the last node of its route and node 2 is the first node of its route and the routes are different
                     if (i1 == len(d.route) - 1) and (i2 == 0) and (d1 != d2):
                         cost = self.computeDistance(d1.route + d2.route, True, True)
-                        if cost <= 12*60:
+                        if cost <= self.max_distance:
                             d1.route = d1.route + d2.route
                             for load in d2.route:
                                 self.assigned[int(load.id)] = d1
@@ -108,9 +95,9 @@ class Solution:
                             
                             self.drivers.remove(d2)
                         
-        for i in range(1, len(vrp.loads) + 1):
+        for i in range(1, len(self.loadByID) + 1):
             if i not in self.assigned:
-                d = Driver(0, [])
+                d = util.Driver(0, [])
                 d.route.append(self.loadByID[i])
                 self.drivers.append(d)
                 self.assigned[i] = d
@@ -120,23 +107,17 @@ class Solution:
 
         distance = 0.0
         for i in range(len(nodes)):
-            distance += es.distanceBetweenPoints(nodes[i].pickup, nodes[i].dropoff)
+            distance += nodes[i].delivery_distance
             if i != (len(nodes) - 1):
-                distance += es.distanceBetweenPoints(nodes[i].dropoff, nodes[i+1].pickup)
+                distance += util.distanceBetweenPoints(nodes[i].dropoff, nodes[i+1].pickup)
 
-        home = es.Point(0,0)
         if nodes:
             if from_depot:
-                distance += es.distanceBetweenPoints(home, nodes[0].pickup)
+                distance += util.distanceBetweenPoints(self.depot, nodes[0].pickup)
             if to_depot:
-                distance += es.distanceBetweenPoints(nodes[-1].dropoff, home)
+                distance += util.distanceBetweenPoints(nodes[-1].dropoff, self.depot)
         
         return distance
-
-    # convert link string to link list to handle saving's key, i.e. str(10, 6) to (10, 6)
-    def get_node(self, link):
-        nodes = link.split(',')
-        return [int(nodes[0]), int(nodes[1])]
     
     def print_solution(self):
 
@@ -149,10 +130,6 @@ class Solution:
                 lids.append(int(load.id))
                 numbers.append(int(load.id))
             print(lids)
-        # print(count)
-        # print(len(set(numbers)))
-        # nat_numbers = [i for i in range(1, 201)]
-        # print(set(nat_numbers) - set(numbers))
 
 
 if __name__ == "__main__":
@@ -162,5 +139,6 @@ if __name__ == "__main__":
     file_path = sys.argv[1]
     # file_path = ".\Training Problems\problem13.txt"
     s = Solution()
-    s.solve(file_path)
+    s.load(file_path)
+    s.solve()
     s.print_solution()
