@@ -1,7 +1,6 @@
 import math
 import io
 
-
 class Point:
     def __init__(self, x, y):
         self.x = x
@@ -17,8 +16,9 @@ class Load:
         self.id = id
         self.pickup = pickup
         self.dropoff = dropoff
+        self.assigned = None
         self.delivery_distance = distanceBetweenPoints(pickup, dropoff)
-
+        
 def distanceBetweenPoints(p1, p2):
     xDiff = p1.x - p2.x
     yDiff = p1.y - p2.y
